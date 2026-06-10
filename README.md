@@ -1,1 +1,1 @@
-# UK-Online-Retail-Customer-Segmentation
+# UK Online Retail Customer Segmentation
