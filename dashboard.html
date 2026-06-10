@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UK Retail — Customer Segmentation Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0f1117;color:#fff;font-family:'Segoe UI',sans-serif;padding:24px}
+  h1{text-align:center;font-size:1.6rem;margin-bottom:4px;color:#fff}
+  .subtitle{text-align:center;color:#a0a3b1;font-size:.9rem;margin-bottom:24px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+  .kpi{background:#1a1d27;border-radius:12px;padding:20px;border-left:4px solid;text-align:center}
+  .kpi .label{color:#a0a3b1;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+  .kpi .value{font-size:1.6rem;font-weight:700}
+  .charts-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+  .charts-mid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .chart-box{background:#1a1d27;border-radius:12px;padding:20px}
+  .chart-box.full{grid-column:1/-1}
+  .chart-box h3{font-size:.95rem;color:#a0a3b1;margin-bottom:16px;text-transform:uppercase;letter-spacing:.05em}
+  canvas{max-height:260px}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th{color:#a0a3b1;text-align:left;padding:8px 12px;border-bottom:1px solid #2d2f3e;font-weight:500}
+  td{padding:8px 12px;border-bottom:1px solid #1a1d27}
+  tr:hover td{background:#1f2233}
+  .badge{padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:600}
+  .filter-row{display:flex;gap:10px;margin-bottom:20px;justify-content:center;flex-wrap:wrap}
+  .filter-btn{padding:7px 18px;border-radius:20px;border:1.5px solid #2d2f3e;background:transparent;color:#a0a3b1;cursor:pointer;font-size:.85rem;transition:all .2s}
+  .filter-btn.active,.filter-btn:hover{border-color:#6c5ce7;color:#fff;background:#6c5ce720}
+  .footer{text-align:center;color:#555;font-size:.8rem;margin-top:24px}
+</style>
+</head>
+<body>
+
+<h1>🛒 UK Online Retail — Customer Segmentation Dashboard</h1>
+<p class="subtitle">RFM Analysis · K-Means Clustering · Dec 2009 – Dec 2011 · Built by Tarunjeet Singh Bedi</p>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="filter-row" id="filters"></div>
+
+<div class="charts-top">
+  <div class="chart-box"><h3>Customers per Segment</h3><canvas id="segBar"></canvas></div>
+  <div class="chart-box"><h3>Revenue by Segment</h3><canvas id="revBar"></canvas></div>
+  <div class="chart-box"><h3>Segment Share</h3><canvas id="donut"></canvas></div>
+</div>
+
+<div class="charts-mid">
+  <div class="chart-box"><h3>Avg Revenue per Customer</h3><canvas id="avgBar"></canvas></div>
+  <div class="chart-box"><h3>Top 10 Products by Revenue</h3><canvas id="prodBar"></canvas></div>
+</div>
+
+<div class="chart-box full" style="margin-bottom:16px">
+  <h3>Monthly Revenue Trend (2009–2011)</h3>
+  <canvas id="trend" style="max-height:200px"></canvas>
+</div>
+
+<div class="chart-box full">
+  <h3>Segment Detail Table</h3>
+  <div class="table-wrap"><table id="segTable">
+    <thead><tr><th>Segment</th><th>Customers</th><th>Total Revenue</th><th>Avg Revenue</th><th>Avg Recency (days)</th><th>Avg Orders</th></tr></thead>
+    <tbody id="tableBody"></tbody>
+  </table></div>
+</div>
+
+<div class="footer">Built with Python · Pandas · Scikit-learn · Chart.js &nbsp;|&nbsp; Tarunjeet Singh Bedi · tarunbedi16@gmail.com</div>
+
+<script>
+const DATA = {"total_customers":5350,"total_revenue":14723147.5,"avg_order_value":2751.99,"date_range":"Dec 2009 \u2013 Dec 2011","segments":[{"Segment":"At Risk","Customers":1040,"Total_Revenue":564026.2,"Avg_Revenue":542.3,"Avg_Recency":187.2,"Avg_Frequency":1.5},{"Segment":"Champions","Customers":1862,"Total_Revenue":11114116.9,"Avg_Revenue":5968.9,"Avg_Recency":30.0,"Avg_Frequency":12.9},{"Segment":"Lost Customers","Customers":1936,"Total_Revenue":2475093.9,"Avg_Revenue":1278.5,"Avg_Recency":421.8,"Avg_Frequency":3.6},{"Segment":"Loyal Customers","Customers":512,"Total_Revenue":569910.5,"Avg_Revenue":1113.1,"Avg_Recency":36.9,"Avg_Frequency":2.3}],"monthly":[{"Month":"2009-12","Revenue":613214.9},{"Month":"2010-01","Revenue":416635.24},{"Month":"2010-02","Revenue":411077.94},{"Month":"2010-03","Revenue":589725.01},{"Month":"2010-04","Revenue":503425.74},{"Month":"2010-05","Revenue":503483.12},{"Month":"2010-06","Revenue":541357.86},{"Month":"2010-07","Revenue":504239.92},{"Month":"2010-08","Revenue":508488.09},{"Month":"2010-09","Revenue":681585.77},{"Month":"2010-10","Revenue":879189.45},{"Month":"2010-11","Revenue":983677.13},{"Month":"2010-12","Revenue":777317.64},{"Month":"2011-01","Revenue":442190.06},{"Month":"2011-02","Revenue":355655.63},{"Month":"2011-03","Revenue":467198.59},{"Month":"2011-04","Revenue":409559.14},{"Month":"2011-05","Revenue":551568.82},{"Month":"2011-06","Revenue":524915.48},{"Month":"2011-07","Revenue":485612.25},{"Month":"2011-08","Revenue":498453.32},{"Month":"2011-09","Revenue":796780.27},{"Month":"2011-10","Revenue":824766.22},{"Month":"2011-11","Revenue":980645.75},{"Month":"2011-12","Revenue":472384.17}],"top_products":[{"Product":"REGENCY CAKESTAND 3 TIER","Revenue":234185.8},{"Product":"WHITE HANGING HEART T-LIGHT HOLDER","Revenue":232828.71},{"Product":"PAPER CRAFT , LITTLE BIRDIE","Revenue":168469.6},{"Product":"JUMBO BAG RED RETROSPOT","Revenue":124702.27},{"Product":"ASSORTED COLOUR BIRD ORNAMENT","Revenue":118166.64},{"Product":"PARTY BUNTING","Revenue":95093.98},{"Product":"MEDIUM CERAMIC TOP STORAGE JAR","Revenue":80291.44},{"Product":"PAPER CHAIN KIT 50S CHRISTMAS","Revenue":76507.98},{"Product":"Manual","Revenue":73663.7},{"Product":"CHILLI LIGHTS","Revenue":71752.24}]};
+
+const COLORS = {
+  'Champions':     '#6c5ce7',
+  'Loyal Customers':'#00b894',
+  'At Risk':       '#fdcb6e',
+  'Lost Customers':'#e17055'
+};
+const ORDER = ['Champions','Loyal Customers','At Risk','Lost Customers'];
+
+const fmt = n => '£' + n.toLocaleString('en-GB', {maximumFractionDigits:0});
+const fmtK = n => '£' + (n/1000).toFixed(0) + 'k';
+
+// KPI cards
+const kpiDef = [
+  {label:'Total Customers', value: DATA.total_customers.toLocaleString(), color:'#6c5ce7'},
+  {label:'Total Revenue',   value: '£' + (DATA.total_revenue/1e6).toFixed(2) + 'M', color:'#00b894'},
+  {label:'Avg Customer Value', value: fmt(DATA.avg_order_value), color:'#fdcb6e'},
+  {label:'Date Range',      value: DATA.date_range, color:'#e17055'},
+];
+document.getElementById('kpis').innerHTML = kpiDef.map(k=>
+  `<div class="kpi" style="border-color:${k.color}">
+    <div class="label">${k.label}</div>
+    <div class="value" style="color:${k.color}">${k.value}</div>
+  </div>`).join('');
+
+// Filters
+const filterDiv = document.getElementById('filters');
+['All',...ORDER].forEach(seg => {
+  const btn = document.createElement('button');
+  btn.className = 'filter-btn' + (seg==='All'?' active':'');
+  btn.textContent = seg;
+  btn.onclick = () => {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    updateTable(seg);
+  };
+  filterDiv.appendChild(btn);
+});
+
+// Sorted segments
+const segs = ORDER.map(s => DATA.segments.find(d=>d.Segment===s));
+
+// Chart defaults
+Chart.defaults.color = '#a0a3b1';
+Chart.defaults.borderColor = '#2d2f3e';
+const baseOpts = {responsive:true, plugins:{legend:{display:false}}};
+
+// 1. Customers bar
+new Chart(document.getElementById('segBar'), {
+  type:'bar',
+  data:{
+    labels: ORDER,
+    datasets:[{data: segs.map(s=>s.Customers), backgroundColor: ORDER.map(s=>COLORS[s]),
+      borderRadius:6, borderSkipped:false}]
+  },
+  options:{...baseOpts, scales:{y:{grid:{color:'#2d2f3e'}}},
+    plugins:{...baseOpts.plugins, tooltip:{callbacks:{label:ctx=>' '+ctx.raw.toLocaleString()+' customers'}}}}
+});
+
+// 2. Revenue bar
+new Chart(document.getElementById('revBar'), {
+  type:'bar',
+  data:{
+    labels: ORDER,
+    datasets:[{data: segs.map(s=>s.Total_Revenue/1000), backgroundColor: ORDER.map(s=>COLORS[s]),
+      borderRadius:6, borderSkipped:false}]
+  },
+  options:{...baseOpts, scales:{y:{grid:{color:'#2d2f3e'}, ticks:{callback:v=>'£'+v+'k'}}},
+    plugins:{...baseOpts.plugins, tooltip:{callbacks:{label:ctx=>' £'+(ctx.raw*1000).toLocaleString()}}}}
+});
+
+// 3. Donut
+new Chart(document.getElementById('donut'), {
+  type:'doughnut',
+  data:{
+    labels: ORDER,
+    datasets:[{data: segs.map(s=>s.Customers),
+      backgroundColor: ORDER.map(s=>COLORS[s]),
+      borderColor:'#0f1117', borderWidth:3, hoverOffset:8}]
+  },
+  options:{responsive:true, cutout:'60%',
+    plugins:{legend:{display:true, position:'bottom', labels:{color:'#a0a3b1', padding:12, boxWidth:12}}}}
+});
+
+// 4. Avg revenue horizontal
+new Chart(document.getElementById('avgBar'), {
+  type:'bar',
+  data:{
+    labels: ORDER,
+    datasets:[{data: segs.map(s=>s.Avg_Revenue), backgroundColor: ORDER.map(s=>COLORS[s]),
+      borderRadius:6, borderSkipped:false, indexAxis:'y'}]
+  },
+  options:{...baseOpts, indexAxis:'y',
+    scales:{x:{grid:{color:'#2d2f3e'}, ticks:{callback:v=>'£'+v.toLocaleString()}}},
+    plugins:{...baseOpts.plugins, tooltip:{callbacks:{label:ctx=>' £'+ctx.raw.toLocaleString()}}}}
+});
+
+// 5. Top products
+new Chart(document.getElementById('prodBar'), {
+  type:'bar',
+  data:{
+    labels: DATA.top_products.map(p=>p.Product.length>22?p.Product.slice(0,22)+'…':p.Product),
+    datasets:[{data: DATA.top_products.map(p=>p.Revenue),
+      backgroundColor:'#6c5ce7', borderRadius:4, borderSkipped:false, indexAxis:'y'}]
+  },
+  options:{...baseOpts, indexAxis:'y',
+    scales:{x:{grid:{color:'#2d2f3e'}, ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'k'}}},
+    plugins:{...baseOpts.plugins, tooltip:{callbacks:{label:ctx=>' £'+ctx.raw.toLocaleString()}}}}
+});
+
+// 6. Monthly trend
+new Chart(document.getElementById('trend'), {
+  type:'line',
+  data:{
+    labels: DATA.monthly.map(m=>m.Month),
+    datasets:[{data: DATA.monthly.map(m=>m.Revenue/1000),
+      borderColor:'#6c5ce7', backgroundColor:'rgba(108,92,231,0.12)',
+      fill:true, tension:0.4, pointRadius:4, pointHoverRadius:7,
+      pointBackgroundColor:'#6c5ce7'}]
+  },
+  options:{...baseOpts,
+    scales:{
+      y:{grid:{color:'#2d2f3e'}, ticks:{callback:v=>'£'+v+'k'}},
+      x:{grid:{display:false}, ticks:{maxRotation:45, minRotation:45}}
+    },
+    plugins:{...baseOpts.plugins, tooltip:{callbacks:{label:ctx=>' £'+(ctx.raw*1000).toLocaleString()}}}}
+});
+
+// Table
+function updateTable(filter) {
+  const rows = filter==='All' ? segs : segs.filter(s=>s.Segment===filter);
+  document.getElementById('tableBody').innerHTML = rows.map(s=>`
+    <tr>
+      <td><span class="badge" style="background:${COLORS[s.Segment]}22;color:${COLORS[s.Segment]}">${s.Segment}</span></td>
+      <td>${s.Customers.toLocaleString()}</td>
+      <td>${fmt(s.Total_Revenue)}</td>
+      <td>${fmt(s.Avg_Revenue)}</td>
+      <td>${s.Avg_Recency} days</td>
+      <td>${s.Avg_Frequency} orders</td>
+    </tr>`).join('');
+}
+updateTable('All');
+</script>
+</body>
+</html>
